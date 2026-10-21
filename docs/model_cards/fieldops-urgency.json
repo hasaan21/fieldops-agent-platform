@@ -1,0 +1,31 @@
+{
+  "Intended use": "Second-opinion urgency triage for inbound job descriptions; fallback when the LLM is unavailable. Not for life-safety decisions (the deterministic safety net and the LLM handle those).",
+  "Data": "1800 synthetic historical jobs; time-based split (1350 train / 450 test). Labels are dispatcher-assigned; agreement with true urgency on test = 0.893 (the practical accuracy ceiling).",
+  "Test metrics: tfidf_logreg_calibrated": {
+    "accuracy": 0.8911111111111111,
+    "macro_f1": 0.8927183666882259,
+    "emergency_recall": 0.9322033898305084,
+    "accuracy_vs_true_label": 0.9977777777777778,
+    "log_loss": 0.4132713850183227,
+    "ece": 0.014550779004008385,
+    "cv_macro_f1_mean": 0.897590177043688,
+    "cv_macro_f1_std": 0.01749924655624006
+  },
+  "Test metrics: tfidf_complement_nb": {
+    "accuracy": 0.8933333333333333,
+    "macro_f1": 0.8950269741713133,
+    "emergency_recall": 0.9322033898305084,
+    "accuracy_vs_true_label": 1.0,
+    "log_loss": 1.8014297093254783,
+    "ece": 0.10666421252241787,
+    "cv_macro_f1_mean": 0.9014305534849767,
+    "cv_macro_f1_std": 0.01835018013493327
+  },
+  "Selected": "tfidf_logreg_calibrated (promoted v2 to champion (log_loss=0.4133 vs None)). Rule: best macro-F1, ties within one CV std go to the lower log loss, because the agent acts on the confidence.",
+  "Limitations": [
+    "Templated synthetic text inflates accuracy vs real messages.",
+    "Retrain/evaluate on paraphrased and production-derived data.",
+    "Emergency recall is the metric to watch; tune thresholds for it.",
+    "Trained on job descriptions, applied to customer messages: domain shift. Vague messages ('something is broken') get overconfident scores, so the agent may only upgrade urgency, never downgrade."
+  ]
+}

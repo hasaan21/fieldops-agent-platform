@@ -18,3 +18,6 @@ node_modules/
 .promptfoo/
 *.sqlite3
 mlflow.db
+
+# personal interview prep (employer-specific details stay local)
+course/interview/private/

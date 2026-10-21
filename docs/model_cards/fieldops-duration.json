@@ -1,0 +1,30 @@
+{
+  "Intended use": "Estimate on-site hours for a new job to size slots; p10/p90 for schedule buffers.",
+  "Data": "Synthetic jobs, time split (1350 train / 450 test). Features known at intake only: category, urgency, asset_type, tenant_id, asset_age_years, engineer_experience_years, hour, dayofweek, month, has_error_code, desc_len",
+  "Test metrics": {
+    "baseline_category_median_mae": 0.751211111111111,
+    "mae": 0.6202300744013282,
+    "rmse": 0.823629080592731,
+    "mape": 0.21645602611801631,
+    "raw_p10_p90_coverage": 0.6666666666666666,
+    "conformal_offset_h": 0.25831618526208855,
+    "p10_p90_coverage": 0.8044444444444444,
+    "mean_interval_width_h": 2.0001616752911255,
+    "mae_improvement_vs_baseline": 0.17435982345368906
+  },
+  "Top features": {
+    "category": 0.18571731820673193,
+    "urgency": 0.14519604909981892,
+    "engineer_experience_years": 0.07684213189718106,
+    "asset_age_years": 0.0559169688152535,
+    "desc_len": 0.006714328735214869,
+    "asset_type": 0.0014243594109040858
+  },
+  "Registry": "promoted v1 to champion (mae=0.6202 vs None)",
+  "Limitations": [
+    "Engineer experience is assumed known at booking (assigned engineer).",
+    "No travel time; add route-distance features for real scheduling.",
+    "Quantile crossing is possible; clip p10 <= p50 <= p90 at serve time.",
+    "Serve intervals as [p10 - 0.26, p90 + 0.26] (conformal offset); recalibrate monthly."
+  ]
+}

@@ -1,7 +1,7 @@
 """A tenant-scoped CRM repository over the synthetic world.
 
-Stands in for Joblogic's own APIs. Every public method takes `tenant_id` first and only returns
-rows from that tenant. tests/test_tenancy.py proves it.
+Stands in for a real FSM platform's APIs. Every public method takes `tenant_id` first and only
+returns rows from that tenant. tests/test_tenancy.py proves it.
 """
 
 from __future__ import annotations

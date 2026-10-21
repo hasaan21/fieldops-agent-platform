@@ -5,7 +5,7 @@ Two kinds of telemetry, deliberately separate:
   Enabled with LANGSMITH_TRACING=true; nothing in this file.
 - **OpenTelemetry** for service-level telemetry: HTTP spans, queue latency, DB calls, error
   rates, custom metrics (cost, budget violations) in the same place as the rest of the
-  company's services (Joblogic runs on Azure, so App Insights).
+  company's services (App Insights here, since the deploy target is Azure).
 
 They are joined by IDs: every agent span carries `fieldops.thread_id` and the LangSmith run
 metadata carries the OTel trace id, so you can jump from an App Insights alert to the trace.

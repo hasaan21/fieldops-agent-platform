@@ -1,0 +1,37 @@
+{
+  "Intended use": "Rank assets by 30-day failure risk to prioritise proactive maintenance visits; exposed to agents as the `asset_failure_risk` tool.",
+  "Data": "5652 monthly snapshots; time split + 20% of assets held out entirely. Train base rate 0.109.",
+  "Test metrics: logreg": {
+    "pr_auc": 0.32681894079385426,
+    "roc_auc": 0.7137375027168007,
+    "brier": 0.07329579474351684,
+    "precision_at_5pct": 0.46808510638297873,
+    "base_rate": 0.09129511677282377,
+    "lift_at_5pct": 5.1271647699158835,
+    "pr_auc_unseen_assets": 0.5183998841846229
+  },
+  "Test metrics: hgb_monotone": {
+    "pr_auc": 0.2659985352601099,
+    "roc_auc": 0.6853418414475114,
+    "brier": 0.07733357513243622,
+    "precision_at_5pct": 0.3723404255319149,
+    "base_rate": 0.09129511677282377,
+    "lift_at_5pct": 4.0784265215239985,
+    "pr_auc_unseen_assets": 0.4181688042461994
+  },
+  "Selected": "logreg (higher PR-AUC). The synthetic hazard is logistic in its features, so a linear model matching the generating process is expected to compete; on real telemetry with interactions, boosting usually wins.",
+  "Top features": {
+    "overdue_ratio": 0.19498758853244905,
+    "fault_count_90d": 0.11034029245945058,
+    "age_years": 0.032366304072959554,
+    "service_interval_days": 0.018117751534523774,
+    "avg_daily_runtime_hours": 0.014430690244691347,
+    "asset_type": 0.01071286002459001
+  },
+  "Registry": "promoted v1 to champion (pr_auc=0.3268 vs None)",
+  "Limitations": [
+    "Synthetic hazard: real telemetry (pressure, temperature, cycles) is far noisier.",
+    "Snapshots of the same asset are correlated; CIs need cluster bootstrap.",
+    "Survival framing (time-to-failure) would use censored data better."
+  ]
+}
