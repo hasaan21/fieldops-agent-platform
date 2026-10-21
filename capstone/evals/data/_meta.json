@@ -1,0 +1,9 @@
+{
+  "world_fingerprint": "c378ab05bbf43d95",
+  "counts": {
+    "dev": 255,
+    "test": 105,
+    "golden": 12,
+    "adversarial": 66
+  }
+}

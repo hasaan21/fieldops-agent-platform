@@ -1,0 +1,92 @@
+name: eval-gate
+
+on:
+  pull_request:
+    paths:
+      - "capstone/**"
+      - "tests/**"
+      - "pyproject.toml"
+  workflow_dispatch:
+  workflow_call:  # deploy.yml runs the same gate before shipping
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test-and-offline-eval:
+    runs-on: ubuntu-latest
+    env:
+      FIELDOPS_OFFLINE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra ml
+      - run: uv run ruff check capstone tests
+      - run: uv run mypy
+      - run: uv run pytest -q
+      - name: Offline eval (rule-based baseline must not regress)
+        run: |
+          uv run python -m capstone.evals.runner --split dev --offline
+          S=$(ls -d artifacts/evals/*-dev-* | tail -1)/summary.json
+          uv run python -m capstone.evals.gate "$S" --baseline capstone/evals/baselines/job_intake_offline.json
+      - name: Regressions split (fixed production failures must stay fixed)
+        if: hashFiles('capstone/evals/data/regressions.jsonl') != ''
+        run: |
+          uv run python -m capstone.evals.runner --split regressions --offline
+          S=$(ls -d artifacts/evals/*-regressions-* | tail -1)/summary.json
+          uv run python -m capstone.evals.gate "$S" --agent job_intake_regressions
+
+  llm-eval:
+    # Runs the real model against the dataset when prompts or agent code change.
+    runs-on: ubuntu-latest
+    needs: test-and-offline-eval
+    if: ${{ vars.RUN_LLM_EVALS == 'true' }}  # repo variable; secrets can't be used in job-level if
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      LANGSMITH_TRACING: "true"
+      LANGSMITH_PROJECT: fieldops-ci
+      FIELDOPS_PROMPT_TAG: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --extra ml
+      - name: LLM eval on test + golden
+        run: |
+          uv run python -m capstone.evals.runner --split test --prompt staging --judge
+          uv run python -m capstone.evals.runner --split golden --prompt staging
+      - name: Gate
+        id: gate
+        run: |
+          S=$(ls -d artifacts/evals/*-test-* | tail -1)/summary.json
+          cp_gate() { cp "$(dirname "$S")/gate.md" artifacts/evals/gate.md; }
+          trap cp_gate EXIT
+          uv run python -m capstone.evals.gate "$S" --baseline capstone/evals/baselines/job_intake_llm.json
+      - name: Comment results on PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          path: ${{ github.workspace }}/artifacts/evals/gate.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-artifacts
+          path: artifacts/evals
+
+  promptfoo:
+    runs-on: ubuntu-latest
+    needs: test-and-offline-eval
+    if: ${{ vars.RUN_LLM_EVALS == 'true' }}  # repo variable; secrets can't be used in job-level if
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - run: uv sync
+      - working-directory: capstone/evals/promptfoo
+        run: |
+          export PROMPTFOO_PYTHON="$GITHUB_WORKSPACE/.venv/bin/python"
+          npx promptfoo@latest eval --no-cache -o results.json

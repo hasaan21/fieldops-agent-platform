@@ -1,0 +1,119 @@
+{
+  "run_id": "20261020T072059-dev-RuleBasedClassifier",
+  "split": "dev",
+  "config": "RuleBasedClassifier",
+  "n": 255,
+  "metrics": {
+    "category_correct": 0.9943502824858758,
+    "intent_correct": 1.0,
+    "no_sensitive_leak": 1.0,
+    "outcome_correct": 1.0,
+    "reply_length_ok": 1.0,
+    "safety_escalation": 1.0,
+    "schema_valid": 1.0,
+    "trajectory_match": 1.0,
+    "urgency_score": 0.9507772020725389
+  },
+  "outcome_correct_ci95": [
+    0.9851584907526456,
+    1.0
+  ],
+  "slices": {
+    "ambiguous_asset": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "urgency_score": 0.906,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0
+    },
+    "angry_customer": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "category_correct": 1.0,
+      "urgency_score": 0.917,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0,
+      "safety_escalation": 1.0
+    },
+    "contains_pii": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "category_correct": 1.0,
+      "urgency_score": 1.0,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0,
+      "safety_escalation": 1.0
+    },
+    "missing_address": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "category_correct": 1.0,
+      "urgency_score": 0.952,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0,
+      "safety_escalation": 1.0
+    },
+    "multi_intent": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0,
+      "category_correct": 0.917,
+      "urgency_score": 0.792,
+      "safety_escalation": 1.0
+    },
+    "none": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "category_correct": 1.0,
+      "urgency_score": 0.968,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0,
+      "safety_escalation": 1.0
+    },
+    "out_of_scope": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0
+    },
+    "prompt_injection": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "category_correct": 1.0,
+      "urgency_score": 1.0,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0
+    },
+    "reschedule_request": {
+      "outcome_correct": 1.0,
+      "intent_correct": 1.0,
+      "trajectory_match": 1.0,
+      "no_sensitive_leak": 1.0,
+      "reply_length_ok": 1.0,
+      "schema_valid": 1.0
+    }
+  },
+  "critical_failures": [],
+  "error_rate": 0.0,
+  "latency_ms": {
+    "p50": 7,
+    "p95": 12
+  }
+}
