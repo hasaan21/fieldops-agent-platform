@@ -1,0 +1,94 @@
+[project]
+name = "fieldops-agent-platform"
+version = "0.1.0"
+description = "FieldOps: a multi-tenant field-service AI agent platform (LangGraph, LangSmith, PromptFoo, pgvector, Databricks/MLflow) built as a course capstone."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langgraph>=0.6",
+    "langgraph-checkpoint-postgres>=2.0",
+    "langchain>=0.3",
+    "langchain-core>=0.3",
+    "langchain-openai>=0.3",
+    "langchain-anthropic>=0.3",
+    "langsmith>=0.3",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.8",
+    "pydantic-settings>=2.4",
+    "httpx>=0.27",
+    "tenacity>=9.0",
+    "psycopg[binary,pool]>=3.2",
+    "pgvector>=0.3",
+    "redis>=5.0",
+    "celery>=5.4",
+    "mcp>=1.2",
+    "pyyaml>=6.0",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "scikit-learn>=1.5",
+    "python-multipart>=0.0.9",
+    "opentelemetry-api>=1.27",
+    "opentelemetry-sdk>=1.27",
+]
+
+[project.optional-dependencies]
+ml = [
+    "lightgbm>=4.3",
+    "mlflow>=3.0",
+    "matplotlib>=3.9",
+]
+deep = [
+    "torch>=2.4",
+    "transformers>=4.44",
+    "sentence-transformers>=3.0",
+]
+channels = [
+    "twilio>=9.0",
+]
+observability = [
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+    "azure-monitor-opentelemetry>=1.6",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "mypy>=1.11",
+    "ruff>=0.6",
+    "types-pyyaml",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["capstone"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "llm: tests that call a real LLM provider (skipped without API keys)",
+    "integration: tests that need docker-compose services",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.ruff.lint.per-file-ignores]
+# Databricks notebooks: `%run` injects names, `%pip` cells precede imports.
+"databricks/notebooks/*.py" = ["F821", "E402"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
+packages = ["capstone"]

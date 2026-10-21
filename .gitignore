@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# generated data and artifacts
+capstone/data/synthetic/out/
+artifacts/
+mlruns/
+mlartifacts/
+node_modules/
+.promptfoo/
+*.sqlite3
+mlflow.db

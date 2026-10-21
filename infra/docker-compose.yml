@@ -1,0 +1,57 @@
+name: fieldops
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: fieldops
+      POSTGRES_PASSWORD: fieldops
+      POSTGRES_DB: fieldops
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fieldops"]
+      interval: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    profiles: ["app"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://fieldops:fieldops@postgres:5432/fieldops
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile
+    profiles: ["app"]
+    command: ["celery", "-A", "capstone.workers.celery_app", "worker", "--loglevel=INFO", "--concurrency=4"]
+    env_file: ../.env
+    environment:
+      DATABASE_URL: postgresql://fieldops:fieldops@postgres:5432/fieldops
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+
+volumes:
+  pgdata:
