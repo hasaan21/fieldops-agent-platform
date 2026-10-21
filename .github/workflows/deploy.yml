@@ -35,6 +35,9 @@ jobs:
 
   build:
     needs: gate
+    # Until Azure is set up (docs/runbook.md#deploy) the pipeline stops after the eval gate;
+    # staging and production are skipped with it.
+    if: vars.AZURE_CLIENT_ID != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
