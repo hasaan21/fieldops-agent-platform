@@ -1,0 +1,92 @@
+# Databricks Asset Bundle for the FieldOps ML pipeline.
+#
+#   databricks auth login --host https://<workspace>.cloud.databricks.com
+#   cd databricks
+#   databricks bundle validate
+#   databricks bundle deploy -t dev
+#   databricks bundle run -t dev fieldops_ml_pipeline
+#
+# Works on Databricks Free Edition (serverless compute, Unity Catalog catalog `workspace`).
+# On a paid workspace, point `catalog` at your own catalog and use the prod target.
+
+bundle:
+  name: fieldops-ml
+
+# Ship the capstone package with the notebooks so they import the same feature and training
+# code the local scripts use (one implementation, two runtimes).
+sync:
+  paths:
+    - ../capstone
+    - ./notebooks
+
+variables:
+  catalog:
+    description: Unity Catalog catalog
+    default: workspace
+  schema:
+    description: Schema for FieldOps tables, features and models
+    default: fieldops
+  alert_email:
+    description: Who gets job failure emails
+    default: you@example.com
+  schedule_pause:
+    description: PAUSED or UNPAUSED
+    default: PAUSED
+
+resources:
+  schemas:
+    fieldops:
+      catalog_name: ${var.catalog}
+      name: ${var.schema}
+      comment: FieldOps synthetic field-service data, features and models
+
+  jobs:
+    fieldops_ml_pipeline:
+      name: fieldops-ml-pipeline-${bundle.target}
+      description: Ingest -> features -> train (3 models) -> promote -> serve -> failure analysis
+      max_concurrent_runs: 1
+      schedule:
+        quartz_cron_expression: "0 0 3 ? * MON"   # weekly retrain, Monday 03:00
+        timezone_id: Europe/London
+        pause_status: ${var.schedule_pause}
+      email_notifications:
+        on_failure: [ "${var.alert_email}" ]
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      tasks:
+        - task_key: ingest
+          notebook_task:
+            notebook_path: ./notebooks/01_ingest_delta.py
+        - task_key: features
+          depends_on: [ { task_key: ingest } ]
+          notebook_task:
+            notebook_path: ./notebooks/02_feature_table.py
+        - task_key: train
+          depends_on: [ { task_key: features } ]
+          notebook_task:
+            notebook_path: ./notebooks/03_train_register.py
+        - task_key: serve
+          depends_on: [ { task_key: train } ]
+          notebook_task:
+            notebook_path: ./notebooks/04_serving.py
+        - task_key: failure_modes
+          depends_on: [ { task_key: ingest } ]
+          notebook_task:
+            notebook_path: ./notebooks/05_failure_modes.py
+
+targets:
+  dev:
+    mode: development          # prefixes resource names with [dev <user>], pauses schedules
+    default: true
+    variables:
+      schedule_pause: PAUSED
+  prod:
+    mode: production
+    variables:
+      schedule_pause: UNPAUSED
+    # In production, run as a service principal, not a person:
+    # run_as:
+    #   service_principal_name: <application-id>
