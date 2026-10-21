@@ -1,0 +1,118 @@
+name: deploy
+
+# main -> eval gate -> build image -> staging (smoke test) -> production (manual approval,
+# new revision smoke-tested at 0% traffic, then traffic shifted; rollback = shift back).
+#
+# One-time setup (see docs/runbook.md#deploy):
+# - Azure: resource groups fieldops-staging / fieldops-prod deployed from infra/azure/main.bicep,
+#   an ACR, and an Entra app with a federated credential for this repo (OIDC, no secrets).
+# - Repo variables: AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID, ACR_NAME.
+# - Repo secret: SMOKE_API_KEY (an API key for a dedicated smoke-test tenant).
+# - GitHub environments "staging" and "production"; production requires a reviewer.
+
+on:
+  push:
+    branches: [main]
+    paths: ["capstone/**", "infra/**", "pyproject.toml", "uv.lock"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # never cancel a half-finished rollout
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  IMAGE: ${{ vars.ACR_NAME }}.azurecr.io/fieldops:${{ github.sha }}
+
+jobs:
+  gate:
+    uses: ./.github/workflows/eval-gate.yml
+    secrets: inherit
+
+  build:
+    needs: gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - run: az acr login --name "${{ vars.ACR_NAME }}"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Roll out
+        run: |
+          az containerapp update -g fieldops-staging -n fieldops-staging-api --image "$IMAGE"
+          az containerapp update -g fieldops-staging -n fieldops-staging-worker --image "$IMAGE"
+          FQDN=$(az containerapp show -g fieldops-staging -n fieldops-staging-api \
+                   --query properties.configuration.ingress.fqdn -o tsv)
+          echo "URL=https://$FQDN" >> "$GITHUB_ENV"
+      - name: Smoke test
+        run: scripts/smoke_test.sh "$URL" "${{ secrets.SMOKE_API_KEY }}"
+
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: production  # protected: requires manual approval
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Create new revision at 0% traffic
+        run: |
+          SUFFIX="r${GITHUB_SHA::7}"
+          az containerapp update -g fieldops-prod -n fieldops-prod-api --image "$IMAGE" \
+            --revision-suffix "$SUFFIX"
+          OLD=$(az containerapp ingress traffic show -g fieldops-prod -n fieldops-prod-api \
+                  --query "[?weight > \`0\`].revisionName | [0]" -o tsv)
+          NEW="fieldops-prod-api--$SUFFIX"
+          az containerapp ingress traffic set -g fieldops-prod -n fieldops-prod-api \
+            --revision-weight "$OLD=100" "$NEW=0"
+          FQDN=$(az containerapp revision show -g fieldops-prod -n fieldops-prod-api \
+                   --revision "$NEW" --query properties.fqdn -o tsv)
+          { echo "OLD=$OLD"; echo "NEW=$NEW"; echo "REV_URL=https://$FQDN"; } >> "$GITHUB_ENV"
+      - name: Smoke test the new revision directly
+        run: scripts/smoke_test.sh "$REV_URL" "${{ secrets.SMOKE_API_KEY }}"
+      - name: Canary 10%, watch, then 100%
+        run: |
+          az containerapp ingress traffic set -g fieldops-prod -n fieldops-prod-api \
+            --revision-weight "$OLD=90" "$NEW=10"
+          sleep 300   # in a real setup: query App Insights error rate / budget violations here
+          az containerapp ingress traffic set -g fieldops-prod -n fieldops-prod-api \
+            --revision-weight "$NEW=100"
+          az containerapp update -g fieldops-prod -n fieldops-prod-worker --image "$IMAGE"
+      - name: Roll back on failure
+        if: failure() && env.OLD != ''
+        run: |
+          az containerapp ingress traffic set -g fieldops-prod -n fieldops-prod-api \
+            --revision-weight "$OLD=100"
